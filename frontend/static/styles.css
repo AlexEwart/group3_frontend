@@ -1,0 +1,38 @@
+:root {
+    color-scheme: light;
+    --ink: #202a35;
+    --muted: #66727d;
+    --accent: #c36b44;
+}
+
+body {
+    min-height: 100vh;
+    background: #f5f6f4;
+    color: var(--ink);
+}
+
+.navbar-brand {
+    letter-spacing: -0.03em;
+}
+
+.eyebrow {
+    color: var(--accent);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.product-card {
+    border-radius: 0.9rem;
+    transition: transform 140ms ease, box-shadow 140ms ease;
+}
+
+.product-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.8rem 1.8rem rgb(32 42 53 / 10%) !important;
+}
+
+#search-input {
+    min-width: min(16rem, 55vw);
+}
