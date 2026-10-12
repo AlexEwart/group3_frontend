@@ -33,11 +33,19 @@ class FrontendService:
             response.raise_for_status()
             return response.json()
 
-    async def add_to_cart(self, user_id: str, product_id: str) -> Any:
+    async def add_to_cart(self, user_id: str, product: dict[str, Any]) -> Any:
+        # Catalog uses price_usd; the cart API's product payload calls it price.
+        cart_product = {
+            "product_id": product.get("product_id"),
+            "name": product.get("name"),
+            "description": product.get("description"),
+            "price": product.get("price", product.get("price_usd")),
+            "categories": product.get("categories", []),
+        }
         async with self.client_factory() as client:
             response = await client.post(
                 f"{self.cart_url}/cart/{user_id}",
-                params={"product_id": product_id},
+                json=cart_product,
             )
             response.raise_for_status()
             return response.json()

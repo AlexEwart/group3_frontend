@@ -14,7 +14,7 @@ pip install -r requirements.txt
 uvicorn frontend.api.router:app --reload --port 8003
 ```
 
-Open `http://localhost:8003`. Each browser session receives an anonymous cart user ID cookie.
+Open `http://localhost:8003`. There is no generated or default user ID. Use the **Sign in** button in the top bar to enter the ID used by the Cart and Recommendation services. Opening the cart while signed out automatically opens the sign-in modal. The ID is kept in an HTTP-only browser-session cookie and is forgotten when the browser session ends. Catalog search updates as you type.
 
 ## Configure dependencies
 
@@ -22,9 +22,9 @@ Set these environment variables to the base URLs of the services (without endpoi
 
 | Variable | Default | Used for |
 | --- | --- | --- |
-| `CART_SERVICE_URL` | `http://localhost:8001` | Cart contents, add, and clear |
+| `CART_SERVICE_URL` | `http://localhost:8001` | Cart contents, add, and clear for the entered user ID |
 | `CATALOG_SERVICE_URL` | `http://localhost:8002` | Product list and search |
-| `RECOMMENDATION_SERVICE_URL` | `http://localhost:8000` | Cart recommendations |
+| `RECOMMENDATION_SERVICE_URL` | `http://localhost:8000` | Recommendations for the entered user ID |
 
 For example, with PowerShell:
 
@@ -42,9 +42,9 @@ Build and run this service independently:
 
 ```powershell
 docker build -t group3-frontend .
-docker run --rm -p 8003:8003 `
-  -e CART_SERVICE_URL="http://host.docker.internal:8001" `
-  -e CATALOG_SERVICE_URL="http://host.docker.internal:8002" `
-  -e RECOMMENDATION_SERVICE_URL="http://host.docker.internal:8000" `
+docker run --rm --name group3-frontend -p 8003:8003 `
+  -e CART_SERVICE_URL="http://34.121.75.149:8080" `
+  -e CATALOG_SERVICE_URL="https://catalog-264439765988.us-central1.run.app" `
+  -e RECOMMENDATION_SERVICE_URL="https://recommendation-264439765988.us-central1.run.app" `
   group3-frontend
 ```

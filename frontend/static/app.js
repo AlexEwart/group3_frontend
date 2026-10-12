@@ -3,6 +3,8 @@ const money = (amount) => new Intl.NumberFormat("en-US", {
     currency: "USD",
 }).format(Number(amount) || 0);
 
+let catalogRequestId = 0;
+
 async function api(path, options = {}) {
     const response = await fetch(path, {
         ...options,
@@ -23,7 +25,7 @@ function showMessage(text, isError = false) {
     message.classList.toggle("text-secondary", !isError);
 }
 
-function productCard(product, { canAdd = true } = {}) {
+function productCard(product, { canAdd = true, signedIn = false } = {}) {
     const column = document.createElement("div");
     column.className = "col-12 col-sm-6 col-lg-4";
 
@@ -55,8 +57,9 @@ function productCard(product, { canAdd = true } = {}) {
         const button = document.createElement("button");
         button.className = "btn btn-dark btn-sm";
         button.type = "button";
-        button.textContent = "Add to cart";
-        button.addEventListener("click", () => addToCart(product.product_id));
+        button.textContent = signedIn ? "Add to cart" : "Sign in first";
+        button.disabled = !signedIn;
+        if (signedIn) button.addEventListener("click", () => addToCart(product));
         footer.append(button);
     }
 
@@ -66,11 +69,11 @@ function productCard(product, { canAdd = true } = {}) {
     return column;
 }
 
-async function addToCart(productId) {
+async function addToCart(product) {
     try {
         await api("/api/cart", {
             method: "POST",
-            body: JSON.stringify({ product_id: String(productId) }),
+            body: JSON.stringify(product),
         });
         showMessage("Added to your cart.");
     } catch (error) {
@@ -80,14 +83,18 @@ async function addToCart(productId) {
 
 async function loadCatalog(search = "") {
     const list = document.getElementById("product-list");
+    const currentRequestId = ++catalogRequestId;
     showMessage("Loading products…");
     list.replaceChildren();
     try {
         const query = search ? `?search_string=${encodeURIComponent(search)}` : "";
         const products = await api(`/api/products${query}`);
-        products.forEach((product) => list.append(productCard(product)));
+        if (currentRequestId !== catalogRequestId) return;
+        const signedIn = Boolean(document.body.dataset.userId);
+        products.forEach((product) => list.append(productCard(product, { signedIn })));
         showMessage(products.length ? `${products.length} products` : "No products found.");
     } catch (error) {
+        if (currentRequestId !== catalogRequestId) return;
         showMessage(error.message, true);
     }
 }
@@ -155,7 +162,7 @@ async function loadCart() {
         const recommendationList = recommendationResult.status === "fulfilled" && Array.isArray(recommendationResult.value)
             ? recommendationResult.value.slice(0, 5)
             : [];
-        recommendationList.forEach((product) => recommendations.append(productCard(product)));
+        recommendationList.forEach((product) => recommendations.append(productCard(product, { signedIn: true })));
         if (!recommendationList.length) {
             const empty = document.createElement("p");
             empty.className = "text-secondary";
@@ -170,25 +177,77 @@ async function loadCart() {
     }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-    if (document.body.dataset.page === "catalog") {
-        const form = document.getElementById("search-form");
-        form.addEventListener("submit", (event) => {
-            event.preventDefault();
-            loadCatalog(new FormData(form).get("search_string").trim());
-        });
-        loadCatalog();
+async function initializeSession() {
+    const form = document.getElementById("sign-in-form");
+    const userIdInput = document.getElementById("user-id");
+    const button = document.getElementById("sign-in-button");
+    const openButton = document.getElementById("open-signin");
+    const sessionStatus = document.getElementById("session-status");
+    const modalElement = document.getElementById("sign-in-modal");
+    if (!form || !userIdInput || !button || !openButton || !sessionStatus || !modalElement) {
+        showMessage("The sign-in form did not load. Refresh the page or rebuild the frontend container.", true);
+        return false;
     }
 
-    if (document.body.dataset.page === "cart") {
-        document.getElementById("clear-cart").addEventListener("click", async () => {
-            try {
-                await api("/api/cart", { method: "DELETE" });
-                await loadCart();
-            } catch (error) {
-                showMessage(error.message, true);
-            }
-        });
-        loadCart();
+    const session = await api("/api/session");
+    const userId = session.user_id || "";
+    document.body.dataset.userId = userId;
+    userIdInput.value = "";
+    button.textContent = "Continue";
+    openButton.textContent = "Sign in";
+    sessionStatus.textContent = userId ? `Signed in as ${userId}` : "";
+
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        button.disabled = true;
+        try {
+            await api("/api/session", {
+                method: "POST",
+                body: JSON.stringify({ user_id: userIdInput.value }),
+            });
+            window.location.reload();
+        } catch (error) {
+            showMessage(error.message, true);
+            button.disabled = false;
+        }
+    });
+
+    if (!userId && document.body.dataset.page === "cart" && window.bootstrap?.Modal) {
+        bootstrap.Modal.getOrCreateInstance(modalElement, {
+            backdrop: "static",
+            keyboard: false,
+        }).show();
+        modalElement.querySelector(".btn-close").hidden = true;
+        userIdInput.focus();
     }
+
+    return Boolean(userId);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    initializeSession().then((signedIn) => {
+        if (document.body.dataset.page === "catalog") {
+            const input = document.getElementById("search-input");
+            input.addEventListener("input", () => loadCatalog(input.value.trim()));
+            loadCatalog();
+        }
+
+        if (document.body.dataset.page === "cart") {
+            const clearButton = document.getElementById("clear-cart");
+            clearButton.disabled = !signedIn;
+            if (signedIn) {
+                clearButton.addEventListener("click", async () => {
+                    try {
+                        await api("/api/cart", { method: "DELETE" });
+                        await loadCart();
+                    } catch (error) {
+                        showMessage(error.message, true);
+                    }
+                });
+                loadCart();
+            } else {
+                showMessage("Enter your user ID above to view your cart and recommendations.");
+            }
+        }
+    }).catch((error) => showMessage(error.message, true));
 });
