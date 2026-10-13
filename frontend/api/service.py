@@ -34,12 +34,12 @@ class FrontendService:
             return response.json()
 
     async def add_to_cart(self, user_id: str, product: dict[str, Any]) -> Any:
-        # Catalog uses price_usd; the cart API's product payload calls it price.
+        # Forward the cart service's product fields using its `price` key.
         cart_product = {
             "product_id": product.get("product_id"),
             "name": product.get("name"),
             "description": product.get("description"),
-            "price": product.get("price", product.get("price_usd")),
+            "price": product.get("price"),
             "categories": product.get("categories", []),
         }
         async with self.client_factory() as client:

@@ -50,7 +50,7 @@ function productCard(product, { canAdd = true, signedIn = false } = {}) {
     const footer = document.createElement("div");
     footer.className = "d-flex justify-content-between align-items-center gap-2 mt-3";
     const price = document.createElement("strong");
-    price.textContent = money(product.price_usd);
+    price.textContent = money(product.price);
     footer.append(price);
 
     if (canAdd) {
@@ -140,7 +140,7 @@ async function loadCart() {
         for (const [id, quantity] of counts) {
             const product = productById.get(id);
             if (!product) continue;
-            total += (Number(product.price_usd) || 0) * quantity;
+            total += (Number(product.price) || 0) * quantity;
             const row = productCard(product, { canAdd: false });
             const name = row.querySelector("h3");
             name.textContent += ` × ${quantity}`;
