@@ -48,3 +48,33 @@ docker run --rm --name group3-frontend -p 8003:8003 `
   -e RECOMMENDATION_SERVICE_URL="https://recommendation-264439765988.us-central1.run.app" `
   group3-frontend
 ```
+
+## Build and deploy with Cloud Build
+
+From this repository's root in Git Bash, set the Artifact Registry and image tag values, then submit the build:
+
+```bash
+export REPOSITORY=ewart-microservices-repo
+export PROJECTID=ewart-microservices
+export REGION=us-central1
+export TAG="$(git rev-parse --short HEAD)"
+
+gcloud builds submit \
+  --project="$PROJECTID" \
+  --region="$REGION" \
+  --config=cloudbuild.yaml \
+  --substitutions=_ARTIFACT_REGISTRY_REPO="$REPOSITORY",SHORT_SHA="$TAG" \
+  .
+```
+
+Deploy the image to Cloud Run after the build completes:
+
+```bash
+gcloud run deploy group3-frontend \
+  --project="$PROJECTID" \
+  --image "$REGION-docker.pkg.dev/$PROJECTID/$REPOSITORY/group3-frontend:$TAG" \
+  --region "$REGION" \
+  --port 8003 \
+  --allow-unauthenticated \
+  --set-env-vars CART_SERVICE_URL="http://34.121.75.149:8080",CATALOG_SERVICE_URL="https://catalog-264439765988.us-central1.run.app",RECOMMENDATION_SERVICE_URL="https://recommendation-264439765988.us-central1.run.app"
+```

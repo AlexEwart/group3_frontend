@@ -1,0 +1,24 @@
+# Build and push the standalone frontend image to Artifact Registry.
+serviceAccount: projects/ewart-microservices/serviceAccounts/ewart-service-account@ewart-microservices.iam.gserviceaccount.com
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+substitutions:
+  _ARTIFACT_REGISTRY_REPO: ewart-microservices-repo
+
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - build
+      - -t
+      - us-central1-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REGISTRY_REPO}/group3-frontend:${SHORT_SHA}
+      - .
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - push
+      - us-central1-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REGISTRY_REPO}/group3-frontend:${SHORT_SHA}
+
+images:
+  - us-central1-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REGISTRY_REPO}/group3-frontend:${SHORT_SHA}
