@@ -1,10 +1,10 @@
 # Group 3 Frontend
 
-A small standalone FastAPI storefront with two pages: a searchable product catalog and a cart page with recommendations. The frontend proxies requests through its own `/api` routes, so the browser only talks to this service and does not need CORS configuration for the dependent services.
+A small standalone FastAPI storefront with a searchable product catalog and a cart page with recommendations and checkout. The frontend proxies requests through its own `/api` routes, so the browser only talks to this service and does not need CORS configuration for the dependent services.
 
 ## Run locally
 
-Start the Cart, Catalog, and Recommendation services first, then run:
+Start the Cart, Catalog, Recommendation, and Payment services first, then run:
 
 ```powershell
 cd group3_frontend
@@ -25,6 +25,7 @@ Set these environment variables to the base URLs of the services (without endpoi
 | `CART_SERVICE_URL` | `http://localhost:8001` | Cart contents, add, and clear for the entered user ID |
 | `CATALOG_SERVICE_URL` | `http://localhost:8002` | Product list and search |
 | `RECOMMENDATION_SERVICE_URL` | `http://localhost:8000` | Recommendations for the entered user ID |
+| `PAYMENT_SERVICE_URL` | `http://localhost:8004` | Payment charges during checkout |
 
 For example, with PowerShell:
 
@@ -32,9 +33,10 @@ For example, with PowerShell:
 $env:CART_SERVICE_URL = "http://localhost:8001"
 $env:CATALOG_SERVICE_URL = "http://localhost:8002"
 $env:RECOMMENDATION_SERVICE_URL = "http://localhost:8000"
+$env:PAYMENT_SERVICE_URL = "http://localhost:8004"
 ```
 
-Payment, shipping, checkout, and email URLs are not needed for the requested catalog/cart frontend.
+Shipping and email URLs are not needed for this catalog, cart, and payment checkout frontend.
 
 ## Docker
 
@@ -46,6 +48,7 @@ docker run --rm --name group3-frontend -p 8003:8003 `
   -e CART_SERVICE_URL="http://34.121.75.149:8080" `
   -e CATALOG_SERVICE_URL="https://catalog-264439765988.us-central1.run.app" `
   -e RECOMMENDATION_SERVICE_URL="https://recommendation-264439765988.us-central1.run.app" `
+  -e PAYMENT_SERVICE_URL="https://payment-service-539115724269.us-central1.run.app" `
   group3-frontend
 ```
 
@@ -76,5 +79,5 @@ gcloud run deploy group3-frontend \
   --region "$REGION" \
   --port 8003 \
   --allow-unauthenticated \
-  --set-env-vars CART_SERVICE_URL="http://34.121.75.149:8080",CATALOG_SERVICE_URL="https://catalog-264439765988.us-central1.run.app",RECOMMENDATION_SERVICE_URL="https://recommendation-264439765988.us-central1.run.app"
+  --set-env-vars CART_SERVICE_URL="http://34.121.75.149:8080",CATALOG_SERVICE_URL="https://catalog-264439765988.us-central1.run.app",RECOMMENDATION_SERVICE_URL="https://recommendation-264439765988.us-central1.run.app",PAYMENT_SERVICE_URL="https://payment-service-539115724269.us-central1.run.app"
 ```

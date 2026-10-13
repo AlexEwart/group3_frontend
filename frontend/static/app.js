@@ -75,6 +75,7 @@ async function addToCart(product) {
             method: "POST",
             body: JSON.stringify(product),
         });
+        if (document.body.dataset.page === "cart" && !(await loadCart())) return;
         showMessage("Added to your cart.");
     } catch (error) {
         showMessage(error.message, true);
@@ -116,6 +117,9 @@ function getProductId(item) {
 async function loadCart() {
     const list = document.getElementById("cart-list");
     const recommendations = document.getElementById("recommendation-list");
+    const checkoutSection = document.getElementById("checkout-section");
+    const checkoutAmount = document.getElementById("checkout-amount");
+    const checkoutButton = document.getElementById("checkout-button");
     showMessage("Loading your cart…");
     list.replaceChildren();
     recommendations.replaceChildren();
@@ -147,6 +151,10 @@ async function loadCart() {
             list.append(row);
         }
 
+        checkoutAmount.textContent = `Total: ${money(total)}`;
+        checkoutSection.hidden = counts.size === 0;
+        checkoutButton.disabled = counts.size === 0;
+
         if (!list.children.length) {
             const empty = document.createElement("p");
             empty.className = "text-secondary";
@@ -172,9 +180,44 @@ async function loadCart() {
             recommendations.append(empty);
         }
         showMessage(`${cartIds.length} item${cartIds.length === 1 ? "" : "s"} in your cart.`);
+        return true;
     } catch (error) {
         showMessage(error.message, true);
+        return false;
     }
+}
+
+function initializeCheckout() {
+    const form = document.getElementById("checkout-form");
+    const button = document.getElementById("checkout-button");
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        form.classList.add("was-validated");
+        if (!form.checkValidity()) return;
+
+        button.disabled = true;
+        button.textContent = "Processing payment…";
+        const values = new FormData(form);
+        try {
+            const result = await api("/api/checkout", {
+                method: "POST",
+                body: JSON.stringify({
+                    card_number: values.get("card_number"),
+                    expiration_date: values.get("expiration_date"),
+                    svn: values.get("svn"),
+                }),
+            });
+            form.reset();
+            form.classList.remove("was-validated");
+            await loadCart();
+            showMessage(`Payment approved. Transaction ID: ${result.transaction_id}`);
+        } catch (error) {
+            showMessage(error.message, true);
+            button.disabled = false;
+        } finally {
+            button.textContent = "Pay and place order";
+        }
+    });
 }
 
 async function initializeSession() {
@@ -236,6 +279,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const clearButton = document.getElementById("clear-cart");
             clearButton.disabled = !signedIn;
             if (signedIn) {
+                initializeCheckout();
                 clearButton.addEventListener("click", async () => {
                     try {
                         await api("/api/cart", { method: "DELETE" });
