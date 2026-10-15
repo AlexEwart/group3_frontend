@@ -24,7 +24,17 @@ class UserSession(BaseModel):
     user_id: str
 
 
-class CheckoutPayment(BaseModel):
+class ShippingAddress(BaseModel):
+    name: str
+    street: str
+    city: str
+    state: str
+    zip: int
+    country: str
+
+
+class CheckoutRequest(BaseModel):
+    shipping_address: ShippingAddress
     card_number: str
     expiration_date: str
     svn: str
@@ -116,65 +126,43 @@ async def empty_cart(request: Request):
 
 
 @app.post("/api/checkout")
-async def checkout(payment: CheckoutPayment, request: Request):
+async def checkout(order: CheckoutRequest, request: Request):
     user_id = require_user_id(request)
-    card_number = re.sub(r"[ -]", "", payment.card_number)
+    card_number = re.sub(r"[ -]", "", order.card_number)
     if not card_number.isdigit() or not 12 <= len(card_number) <= 19:
         raise HTTPException(status_code=422, detail="Enter a valid card number.")
-    if not re.fullmatch(r"(0[1-9]|1[0-2])/(\d{2}|\d{4})", payment.expiration_date.strip()):
+    if not re.fullmatch(r"(0[1-9]|1[0-2])/(\d{2}|\d{4})", order.expiration_date.strip()):
         raise HTTPException(status_code=422, detail="Enter expiration as MM/YY or MM/YYYY.")
-    if not re.fullmatch(r"\d{3,4}", payment.svn.strip()):
+    if not re.fullmatch(r"\d{3,4}", order.svn.strip()):
         raise HTTPException(status_code=422, detail="Enter a valid security code.")
 
-    cart = await call_upstream(frontend_service.get_cart(user_id))
-    products = await call_upstream(frontend_service.get_products())
     try:
-        amount = frontend_service.cart_total(cart, products)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    try:
-        charge = await frontend_service.charge(
-            amount,
+        result = await frontend_service.checkout(
+            user_id,
+            order.shipping_address.model_dump(),
             card_number,
-            payment.expiration_date.strip(),
-            payment.svn.strip(),
+            order.expiration_date.strip(),
+            order.svn.strip(),
         )
     except httpx.HTTPStatusError as exc:
-        logger.warning("Payment service rejected a charge with HTTP %s", exc.response.status_code)
+        logger.warning("Checkout service returned HTTP %s", exc.response.status_code)
         status_code = exc.response.status_code
         if 400 <= status_code < 500:
-            detail = (
-                "Payment was declined or the payment details were rejected. "
-                "Your cart has not been cleared."
-            )
+            detail = "Checkout was rejected. Check your shipping address and payment details."
         else:
             status_code = 502
-            detail = "Payment service returned an error. Your cart has not been cleared."
+            detail = "Checkout service returned an error."
         raise HTTPException(
             status_code=status_code,
             detail=detail,
         ) from exc
     except httpx.HTTPError as exc:
-        logger.exception("Payment service is unavailable")
+        logger.exception("Checkout service is unavailable")
         raise HTTPException(
             status_code=502,
-            detail="Payment service is unavailable. Your cart has not been cleared.",
+            detail="Checkout service is unavailable.",
         ) from exc
-    transaction_id = charge.get("transaction_id") if isinstance(charge, dict) else None
-    status = charge.get("status", "") if isinstance(charge, dict) else ""
-    if not transaction_id or "approved" not in str(status).lower():
-        raise HTTPException(status_code=402, detail="Payment was not approved. Your cart has not been cleared.")
-
-    try:
-        await call_upstream(frontend_service.clear_cart(user_id))
-    except HTTPException as exc:
-        logger.error("Payment %s succeeded but clearing the cart failed", transaction_id)
-        raise HTTPException(
-            status_code=502,
-            detail=f"Payment approved (transaction {transaction_id}), but the cart could not be cleared. Do not submit payment again.",
-        ) from exc
-    return {"amount": amount, "transaction_id": transaction_id, "status": status}
+    return result
 
 
 @app.get("/api/recommendations")

@@ -11,7 +11,7 @@ class FrontendService:
         cart_url: str | None = None,
         catalog_url: str | None = None,
         recommendation_url: str | None = None,
-        payment_url: str | None = None,
+        checkout_url: str | None = None,
         client_factory: Callable[[], httpx.AsyncClient] = httpx.AsyncClient,
     ):
         self.cart_url = (cart_url or os.getenv("CART_SERVICE_URL", "http://localhost:8001")).rstrip("/")
@@ -19,7 +19,9 @@ class FrontendService:
         self.recommendation_url = (
             recommendation_url or os.getenv("RECOMMENDATION_SERVICE_URL", "http://localhost:8000")
         ).rstrip("/")
-        self.payment_url = (payment_url or os.getenv("PAYMENT_SERVICE_URL", "http://localhost:8004")).rstrip("/")
+        self.checkout_url = (
+            checkout_url or os.getenv("CHECKOUT_SERVICE_URL", "http://localhost:8005")
+        ).rstrip("/")
         self.client_factory = client_factory
 
     async def get_products(self, search_string: str | None = None) -> Any:
@@ -97,12 +99,19 @@ class FrontendService:
             total += price * quantity
         return round(total, 2)
 
-    async def charge(self, amount: float, card_number: str, expiration_date: str, svn: str) -> Any:
+    async def checkout(
+        self,
+        user_id: str,
+        shipping_address: dict[str, Any],
+        card_number: str,
+        expiration_date: str,
+        svn: str,
+    ) -> Any:
         async with self.client_factory() as client:
             response = await client.post(
-                f"{self.payment_url}/charges",
+                f"{self.checkout_url}/checkout/{user_id}",
                 json={
-                    "amount": amount,
+                    "shipping_address": shipping_address,
                     "card_number": card_number,
                     "expiration_date": expiration_date,
                     "svn": svn,

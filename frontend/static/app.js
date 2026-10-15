@@ -151,7 +151,7 @@ async function loadCart() {
             list.append(row);
         }
 
-        checkoutAmount.textContent = `Total: ${money(total)}`;
+        checkoutAmount.textContent = `Cart subtotal: ${money(total)}`;
         checkoutSection.hidden = counts.size === 0;
         checkoutButton.disabled = counts.size === 0;
 
@@ -196,12 +196,20 @@ function initializeCheckout() {
         if (!form.checkValidity()) return;
 
         button.disabled = true;
-        button.textContent = "Processing payment…";
+        button.textContent = "Placing order…";
         const values = new FormData(form);
         try {
             const result = await api("/api/checkout", {
                 method: "POST",
                 body: JSON.stringify({
+                    shipping_address: {
+                        name: values.get("shipping_name").trim(),
+                        street: values.get("street").trim(),
+                        city: values.get("city").trim(),
+                        state: values.get("state").trim().toUpperCase(),
+                        zip: Number(values.get("zip")),
+                        country: values.get("country").trim(),
+                    },
                     card_number: values.get("card_number"),
                     expiration_date: values.get("expiration_date"),
                     svn: values.get("svn"),
@@ -209,13 +217,22 @@ function initializeCheckout() {
             });
             form.reset();
             form.classList.remove("was-validated");
+            const orderSummary = document.getElementById("order-summary");
+            document.getElementById("shipping-estimate").textContent = money(result.shipping_estimate);
+            document.getElementById("order-total").textContent = money(result.total);
+            orderSummary.hidden = false;
             await loadCart();
-            showMessage(`Payment approved. Transaction ID: ${result.transaction_id}`);
+            const paymentStatus = result.payment?.status;
+            const transactionId = result.payment?.transaction_id;
+            showMessage(
+                `Order placed${paymentStatus ? ` (${paymentStatus})` : ""}`
+                + `${transactionId ? `. Transaction ID: ${transactionId}` : ""}.`,
+            );
         } catch (error) {
             showMessage(error.message, true);
             button.disabled = false;
         } finally {
-            button.textContent = "Pay and place order";
+            button.textContent = "Place order";
         }
     });
 }
