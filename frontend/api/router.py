@@ -1,6 +1,7 @@
 import logging
 from pathlib import Path
 import re
+from uuid import UUID, uuid4
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request
@@ -42,9 +43,15 @@ class CheckoutRequest(BaseModel):
 
 @app.middleware("http")
 async def assign_session(request: Request, call_next):
-    """Pass the optional user ID cookie to routes that call user services."""
+    """Assign a request correlation ID and pass the optional user ID cookie."""
     request.state.user_id = request.cookies.get("shopping_session")
+    incoming_id = request.headers.get("correlation_id", "")
+    try:
+        request.state.correlation_id = str(UUID(incoming_id))
+    except (ValueError, AttributeError):
+        request.state.correlation_id = str(uuid4())
     response = await call_next(request)
+    response.headers["correlation_id"] = request.state.correlation_id
     return response
 
 
@@ -106,23 +113,31 @@ def require_user_id(request: Request) -> str:
 
 
 @app.get("/api/products")
-async def list_products(search_string: str | None = None):
-    return await call_upstream(frontend_service.get_products(search_string))
+async def list_products(request: Request, search_string: str | None = None):
+    return await call_upstream(
+        frontend_service.get_products(search_string, request.state.correlation_id)
+    )
 
 
 @app.get("/api/cart")
 async def read_cart(request: Request):
-    return await call_upstream(frontend_service.get_cart(require_user_id(request)))
+    return await call_upstream(
+        frontend_service.get_cart(require_user_id(request), request.state.correlation_id)
+    )
 
 
 @app.post("/api/cart")
 async def add_cart_item(item: dict[str, Any], request: Request):
-    return await call_upstream(frontend_service.add_to_cart(require_user_id(request), item))
+    return await call_upstream(
+        frontend_service.add_to_cart(require_user_id(request), item, request.state.correlation_id)
+    )
 
 
 @app.delete("/api/cart")
 async def empty_cart(request: Request):
-    return await call_upstream(frontend_service.clear_cart(require_user_id(request)))
+    return await call_upstream(
+        frontend_service.clear_cart(require_user_id(request), request.state.correlation_id)
+    )
 
 
 @app.post("/api/checkout")
@@ -136,6 +151,7 @@ async def checkout(order: CheckoutRequest, request: Request):
     if not re.fullmatch(r"\d{3,4}", order.svn.strip()):
         raise HTTPException(status_code=422, detail="Enter a valid security code.")
 
+    correlation_id = request.state.correlation_id
     try:
         result = await frontend_service.checkout(
             user_id,
@@ -143,6 +159,7 @@ async def checkout(order: CheckoutRequest, request: Request):
             card_number,
             order.expiration_date.strip(),
             order.svn.strip(),
+            correlation_id,
         )
     except httpx.HTTPStatusError as exc:
         logger.warning("Checkout service returned HTTP %s", exc.response.status_code)
@@ -167,4 +184,6 @@ async def checkout(order: CheckoutRequest, request: Request):
 
 @app.get("/api/recommendations")
 async def list_recommendations(request: Request):
-    return await call_upstream(frontend_service.get_recommendations(require_user_id(request)))
+    return await call_upstream(
+        frontend_service.get_recommendations(require_user_id(request), request.state.correlation_id)
+    )

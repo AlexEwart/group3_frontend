@@ -8,7 +8,11 @@ let catalogRequestId = 0;
 async function api(path, options = {}) {
     const response = await fetch(path, {
         ...options,
-        headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+        headers: {
+            "Content-Type": "application/json",
+            "correlation_id": crypto.randomUUID(),
+            ...(options.headers || {}),
+        },
     });
     if (!response.ok) {
         const detail = await response.json().catch(() => ({}));

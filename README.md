@@ -16,6 +16,8 @@ uvicorn frontend.api.router:app --reload --port 8003
 
 Open `http://localhost:8003`. There is no generated or default user ID. Use the **Sign in** button in the top bar to enter the ID used by the Cart and Recommendation services. Opening the cart while signed out automatically opens the sign-in modal. The ID is kept in an HTTP-only browser-session cookie and is forgotten when the browser session ends. Catalog search updates as you type.
 
+Each browser API request carries a UUID in the `correlation_id` header. The frontend forwards that ID to dependent services and returns it in the response header for tracing.
+
 ## Configure dependencies
 
 Set these environment variables to the base URLs of the services (without endpoint paths):
