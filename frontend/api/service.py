@@ -48,6 +48,7 @@ class FrontendService:
         async with self.client_factory() as client:
             response = await client.get(
                 url,
+                params=self._correlation_params(correlation_id),
                 headers=self._correlation_headers(correlation_id),
             )
             response.raise_for_status()
@@ -70,6 +71,7 @@ class FrontendService:
             response = await client.post(
                 url,
                 json=cart_product,
+                params=self._correlation_params(correlation_id),
                 headers=self._correlation_headers(correlation_id),
             )
             response.raise_for_status()
@@ -81,6 +83,7 @@ class FrontendService:
         async with self.client_factory() as client:
             response = await client.delete(
                 url,
+                params=self._correlation_params(correlation_id),
                 headers=self._correlation_headers(correlation_id),
             )
             response.raise_for_status()
@@ -145,6 +148,7 @@ class FrontendService:
                     "expiration_date": expiration_date,
                     "svn": svn,
                 },
+                params=self._correlation_params(correlation_id),
                 headers=self._correlation_headers(correlation_id),
             )
             response.raise_for_status()
@@ -163,6 +167,10 @@ class FrontendService:
 
     @staticmethod
     def _correlation_headers(correlation_id: str | None) -> dict[str, str]:
+        return {"correlation_id": correlation_id} if correlation_id else {}
+
+    @staticmethod
+    def _correlation_params(correlation_id: str | None) -> dict[str, str]:
         return {"correlation_id": correlation_id} if correlation_id else {}
 
     @staticmethod
