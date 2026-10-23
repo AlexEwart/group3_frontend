@@ -167,16 +167,16 @@ class FrontendService:
 
     @staticmethod
     def _correlation_headers(correlation_id: str | None) -> dict[str, str]:
-        return {"correlation_id": correlation_id} if correlation_id else {}
+        return {"correlation-id": correlation_id} if correlation_id else {}
 
     @staticmethod
     def _correlation_params(correlation_id: str | None) -> dict[str, str]:
-        return {"correlation_id": correlation_id} if correlation_id else {}
+        return {"correlation-id": correlation_id} if correlation_id else {}
 
     @staticmethod
     def _log_correlation(method: str, url: str, correlation_id: str | None) -> None:
         logger.info(
-            "Sending correlation_id=%s to %s %s",
+            "Sending correlation-id=%s to %s %s",
             correlation_id or "<none>",
             method,
             url,

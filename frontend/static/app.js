@@ -10,7 +10,7 @@ async function api(path, options = {}) {
         ...options,
         headers: {
             "Content-Type": "application/json",
-            "correlation_id": crypto.randomUUID(),
+            "correlation-id": crypto.randomUUID(),
             ...(options.headers || {}),
         },
     });

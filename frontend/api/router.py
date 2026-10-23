@@ -45,13 +45,13 @@ class CheckoutRequest(BaseModel):
 async def assign_session(request: Request, call_next):
     """Assign a request correlation ID and pass the optional user ID cookie."""
     request.state.user_id = request.cookies.get("shopping_session")
-    incoming_id = request.headers.get("correlation_id", "")
+    incoming_id = request.headers.get("correlation-id", "")
     try:
         request.state.correlation_id = str(UUID(incoming_id))
     except (ValueError, AttributeError):
         request.state.correlation_id = str(uuid4())
     response = await call_next(request)
-    response.headers["correlation_id"] = request.state.correlation_id
+    response.headers["correlation-id"] = request.state.correlation_id
     return response
 
 
